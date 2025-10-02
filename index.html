@@ -7,8 +7,62 @@
     <title>Gerenciador de clientes</title>
     <link rel="stylesheet" type="text/css" href="css/estilo.css">
     <link rel="manifest" href="manifest.json">
+
+<style>
+.overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.95);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  z-index: 9999;
+}
+
+.overlay-content {
+  background: #1e1e1e;
+  padding: 30px;
+  border-radius: 12px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 0 15px rgba(255,255,255,0.3);
+}
+
+.overlay-content h2 {
+  margin-bottom: 15px;
+  font-size: 22px;
+}
+
+.overlay-content p {
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+#btnWhatsApp {
+  background: #25d366;
+  border: none;
+  padding: 12px 20px;
+  color: white;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+#btnWhatsApp:hover {
+  background: #20b954;
+}
+</style>
 </head>
 <body>
+
+<div id="trialOverlay" class="overlay" style="display:none;">
+  <div class="overlay-content">
+    <h2>⚠️ Período de teste expirado</h2>
+    <p>Seu acesso terminou.<br>
+       Para renovar, fale com o administrador.</p>
+    <button id="btnWhatsApp">📲 Falar no WhatsApp</button>
+  </div>
+</div>
 
 <div id="loading">
     <div class="spinner">
@@ -103,5 +157,39 @@
 <footer>
         © 2024 Produzido por <a href="https://wa.me/5581982258462?text=%2AOl%C3%A1%2C+fiquei+interessado+nesse+seu+aplicativo+web%2C+quanto+custa+%3F%2A"><strong>BRUNO-PEACE</strong></a>
 </footer>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const overlay = document.getElementById("trialOverlay");
+  const btnWhatsApp = document.getElementById("btnWhatsApp");
+
+  // 📲 Número de WhatsApp
+  const numeroWhatsApp = "5581982258462"; 
+  const mensagemWhatsApp = encodeURIComponent("Olá, quero renovar meu acesso ao aplicativo.");
+
+  // 📌 Data e hora de expiração
+  const expDate = new Date("2025-09-29T09:16:00"); 
+  // formato: "AAAA-MM-DDTHH:mm:ss"
+
+  // Função para verificar se já expirou
+  function verificarExpiracao() {
+    const agora = new Date();
+    if (agora >= expDate) {
+      overlay.style.display = "flex"; // bloqueia a tela
+    }
+  }
+
+  // Checa ao carregar
+  verificarExpiracao();
+
+  // ⏱️ Checa de 30 em 30 segundos (pode mudar para 1000 → 1 segundo)
+  setInterval(verificarExpiracao, 30000);
+
+  // Botão WhatsApp
+  btnWhatsApp.addEventListener("click", () => {
+    window.open(`https://wa.me/${numeroWhatsApp}?text=${mensagemWhatsApp}`, "_blank");
+  });
+});
+</script>
 </body>
 </html>
