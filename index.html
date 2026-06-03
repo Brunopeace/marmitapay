@@ -3,193 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href=img/icon.png">
-    <title>Gerenciador de clientes</title>
-    <link rel="stylesheet" type="text/css" href="css/estilo.css">
-    <link rel="manifest" href="manifest.json">
-
-<style>
-.overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.95);
-  color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  text-align: center;
-  z-index: 9999;
-}
-
-.overlay-content {
-  background: #1e1e1e;
-  padding: 30px;
-  border-radius: 12px;
-  max-width: 400px;
-  width: 90%;
-  box-shadow: 0 0 15px rgba(255,255,255,0.3);
-}
-
-.overlay-content h2 {
-  margin-bottom: 15px;
-  font-size: 22px;
-}
-
-.overlay-content p {
-  margin-bottom: 20px;
-  font-size: 16px;
-}
-
-#btnWhatsApp {
-  background: #25d366;
-  border: none;
-  padding: 12px 20px;
-  color: white;
-  font-size: 16px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-#btnWhatsApp:hover {
-  background: #20b954;
-}
-</style>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Marmita Pay - Gerenciador</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<div id="trialOverlay" class="overlay" style="display:none;">
-  <div class="overlay-content">
-    <h2>⚠️ Período de teste expirado</h2>
-    <p>Seu acesso terminou.<br>
-       Para renovar, fale com o administrador.</p>
-    <button id="btnWhatsApp">📲 Falar no WhatsApp</button>
-  </div>
-</div>
+    <header class="app-header">
+    <div class="header-container">
+        <div class="logo-container">
+            <div class="logo-wrapper">
+                <img src="img/marmita.png" alt="Logo" class="logo-img" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IjBoZWlnaHQ9IjY0Ij48cGF0aCBkPSJNMTIsMjggTDE2LDQ4IEMxNyw1MiAyMCw1NSAyNCw1NSBMNDAsNTUgQzQ0LDU1IDQ3LDUyIDQ4LDQ4IEw1MiwyOCBaIiBmaWxsPSIjZmZmZmZmIi8+PHBhdGggZD0iTTgsMjIgQzgsMjAgMTIsMTggMjAsMTggTDQ0LDE4IEM1MiwxOCA1NiwyMCA1NiwyMiBMNTQsMjcgTDEwLDI3IFoiIGZiproiIzEwYjk4MSIvPjxwYXRoIGQ9Ik0yNCwzNSBMMzAsNDEgTDQyLDI5IiBzdHJva2U9IiMxMGI5ODEiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIi8+Cjwvc3ZnPg=='">
+            </div>
+            <div class="brand-text">
+                <h1>Marmita Pay</h1>
+                <span class="app-subtitle">Painel de Controle</span>
+            </div>
+        </div>
 
-<div id="loading">
-    <div class="spinner">
-        <span>Carregando...</span>
+        <div id="total-geral" class="total-badge" onclick="alterarPrecoMarmita()" style="cursor: pointer;" title="Clique para alterar o preço da marmita">
+            <span class="total-label">A RECEBER</span>
+            <span class="total-value">R$ 0,00</span>
+    </div>
+
+
+    </div>
+</header>
+
+<!-- MODAL: Alterar Preço da Marmita -->
+<div id="modalPreco" class="modal">
+    <div class="modal-content" style="max-width: 360px;">
+        <span class="close" onclick="closeModal('modalPreco')">&times;</span>
+        <h3 style="margin-bottom: 6px;">Ajustar Preço</h3>
+        <p class="info-destaque-modal" style="margin-bottom: 20px;">Defina o novo valor padrão para as quentinhas.</p>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px; font-family: sans-serif;">
+            <label for="inputNovoPreco" style="font-size: 0.85rem; font-weight: 700; color: #475569;">PREÇO ATUAL (R$)</label>
+            <input type="number" id="inputNovoPreco" step="0.01" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 1.1rem; font-weight: bold; box-sizing: border-box;">
+            
+            <button onclick="salvarNovoPrecoModal()" style="width: 100%; background: #10b981; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 8px; transition: background 0.2s;">
+                Confirmar Reajuste
+            </button>
+        </div>
     </div>
 </div>
 
-    <img id="logo" src="img/logo-padrao.png" alt="Logomarca" class="logo">
+    <main class="container-principal">
+        <div class="secao-clientes">
+            <div class="secao-header">
+                <h2>Clientes Cadastrados</h2>
+                <button onclick="openModal('modalAdd')" class="btn-main-add">+ Novo Cliente</button>
+            </div>
+            
+            <div class="busca-container">
+                <input type="text" id="searchInput" oninput="render()" placeholder="🔍 BUSCAR CLIENTE OU TELEFONE...">
+            </div>
 
+            <div id="clientList" class="lista-cards"></div>
+        </div>
+    </main>
 
-
-<h1><strong>Painel de vencimento</strong></h1>
-    
-    <button id="backToTop" title="Voltar ao Topo">
-
-<button onclick="toggleDarkMode()" class="meio" class="slide-in">Claro Escuro</button><button id="backup" onclick="exportarClientes()">Backup Clientes</button><br><br>
-
-    <div class="input-container slide-in">
-<input type="file" id="importarClientes" style="display: none;"/>
-<label for="importarClientes" class="button">Importar Backup 💾</label><br>
-        <label for="inputPesquisar">Pesquisar Cliente 🔎</label>
-        <input type="text" id="inputPesquisar" oninput="pesquisarCliente()" placeholder="Pesquisar cliente">
+    <div id="modalAdd" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modalAdd')">&times;</span>
+            <h3>Novo Cliente</h3>
+            <label for="name">Nome do Cliente</label>
+            <input type="text" id="name" placeholder="EX: JOÃO DA SILVA">
+            
+            <label for="phone">WhatsApp</label>
+            <input type="text" id="phone" placeholder="EX: (81) 9 9999-9999">
+            
+            <label for="limit">Limite de Pendura (R$)</label>
+            <input type="number" id="limit" placeholder="0.00 para sem limite" step="0.01">
+            
+            <button onclick="addClient()" class="btn-submit">Salvar Cliente</button>
+        </div>
     </div>
 
-    <div class="input-container slide-in">
-        <label for="inputNome">Adicionar cliente aqui 👱</label>
-        <input type="text" id="inputNome" required placeholder="Nome do cliente">
+    <div id="modalEdit" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modalEdit')">&times;</span>
+            <h3>Editar Cliente</h3>
+            <input type="hidden" id="editId">
+            
+            <label for="editName">Nome do Cliente</label>
+            <input type="text" id="editName">
+            
+            <label for="editPhone">WhatsApp</label>
+            <input type="text" id="editPhone">
+            
+            <label for="editLimit">Limite de Pendura (R$)</label>
+            <input type="number" id="editLimit" step="0.01">
+            
+            <button onclick="saveEdit()" class="btn-submit">Salvar Alterações</button>
+        </div>
     </div>
-    
-    <div class="input-container slide-in">
-        <label for="inputTelefone">Telefone do cliente 📞</label>
-        <input type="tel" id="inputTelefone" required placeholder="Telefone do cliente">
+
+    <div id="modalPendura" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modalPendura')">&times;</span>
+            <h3 id="penduraTitle">Venda para Cliente</h3>
+            <input type="hidden" id="penduraId">
+            
+            <label for="penduraValor">Valor Unitário (R$)</label>
+            <input type="number" id="penduraValor" step="0.01">
+            
+            <label for="penduraQtd">Quantidade de Quentinhas</label>
+            <input type="number" id="penduraQtd" min="1">
+            
+            <button onclick="confirmarPendura()" class="btn-submit">Confirmar Pendura</button>
+        </div>
     </div>
-    
-    <div class="input-container slide-in">
-        <label for="inputData">Data de vencimento 🗓️</label>
-        <input type="date" id="inputData" required>
+
+    <div id="modalLimite" class="modal">
+        <div class="modal-content modal-limite-content">
+            <div class="modal-limite-body">
+                <i class="bi bi-exclamation-octagon-fill icon-bloqueio"></i>
+                <h2>Limite Excedido!</h2>
+                <div id="limiteMsg" class="limite-caixa-msg"></div>
+                <button onclick="closeModal('modalLimite')" class="btn-submit btn-bloqueio">Entendi, vou avisar o cliente</button>
+            </div>
+        </div>
     </div>
+
+    <div id="modalPagarValor" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modalPagarValor')">&times;</span>
+            <h3>Registrar Pagamento</h3>
+            <p id="infoDividaAtual" class="info-destaque-modal"></p>
+            <input type="hidden" id="pagarId">
+            
+            <label for="inputValorPago">Quanto o cliente está pagando? (R$)</label>
+            <input type="number" id="inputValorPago" step="0.01">
+            
+            <button onclick="proximoPassoPagamento()" class="btn-submit">Próximo Passo</button>
+        </div>
+    </div>
+
+    <div id="modalPagarMarmitas" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('modalPagarMarmitas')">&times;</span>
+            <h3>Abater Marmitas</h3>
+            <p id="infoPagamentoFeito" class="info-sucesso-modal"></p>
+            
+            <label for="inputQtdAbatida">Esse valor quita quantas marmitas?</label>
+            <input type="number" id="inputQtdAbatida" min="0">
+            <small class="feedback-pequeno">
+                Atualmente o cliente tem <span id="spanMarmitasPendentes"></span> pendentes.
+            </small>
+            
+            <button onclick="confirmarPagamentoFinal()" class="btn-submit">Finalizar Pagamento</button>
+        </div>
+    </div>
+
+    <div id="modalHistory" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('modalHistory')">&times;</span>
+        <h3 id="modalTitle">Nome do Cliente</h3>
+        
+        <!-- NOVO: Filtro de Mês -->
+        <div style="margin: 15px 0;">
+            <label style="font-size: 0.8rem; font-weight: bold; color: #64748b;">FILTRAR POR MÊS:</label>
+            <select id="filtroMes" onchange="showHistory(currentClientId)" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 5px;">
+                <!-- Será preenchido automaticamente pelo JS -->
+            </select>
+        </div>
+
+        <div id="resumoMensal" style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 0.9rem;">
     
-    <button id="btnExcluirSelecionados" onclick="excluirClientesSelecionados()">Excluir Seleção</button><button onclick="adicionarCliente()" class="slide-in">Adicionar Cliente</button><br><br>
-    
-    
-<div id="infoClientes2" class="slide-in"></div><br>
-    <div id="infoClientes" class="slide-in"></div>
-    <div class="table-container slide-in">
-           
-           
-<br>
-<button id="toggleLixeira" onclick="alternarLixeira()">Abrir Lixeira</button>
-<br><br>
-<div id="containerLixeira" style="display: none;">
-    <div id="quantidadeClientesLixeira"></div>
-    <div id="lixeira">
-        <button id="restaurarSelecionados" onclick="restaurarSelecionados()">Restaurar /Sel</button>
-        <button id="esvaziarLixeira" onclick="esvaziarLixeira()">Esvaziar Lixeira</button>
-        <input type="text" id="pesquisarLixeira" placeholder="Pesquisar na lixeira" oninput="pesquisarClientesLixeira()">
-        <table id="tabelaLixeira">
-            <thead>
-                <tr>
-                    <th>
-<input type="checkbox" id="selecionarTodos" onclick="toggleSelecionarTodos(this)">
-                    </th>
-                    
-                </tr>
-            </thead>
-            <tbody id="clientList">
-                <!-- Clientes da lixeira serão carregados aqui -->
-            </tbody>
-        </table>
+        </div>
+
+        <div id="historyContent" style="max-height: 300px; overflow-y: auto;"></div>
     </div>
 </div>
 
 
-        <table>
-    <thead>
-        <tr>
-         <th><input type="checkbox" id="select-all"></th>
-            <th>Nome</th>
-            <th>Telefone</th>
-            <th>Data de Vencimento</th>
-            <th>Ações</th>
-        </tr>
-    </thead>
-    <tbody id="corpoTabela">
-<!-- Linhas de clientes adicionadas dinamicamente -->
-    </tbody>
-</table>
-    </div>
-    <script src="javascript/script.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-<footer>
-        © 2024 Produzido por <a href="https://wa.me/5581982258462?text=%2AOl%C3%A1%2C+fiquei+interessado+nesse+seu+aplicativo+web%2C+quanto+custa+%3F%2A"><strong>BRUNO-PEACE</strong></a>
-</footer>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const overlay = document.getElementById("trialOverlay");
-  const btnWhatsApp = document.getElementById("btnWhatsApp");
-
-  // 📲 Número de WhatsApp
-  const numeroWhatsApp = "5581982258462"; 
-  const mensagemWhatsApp = encodeURIComponent("Olá, quero renovar meu acesso ao aplicativo.");
-
-  // 📌 Data e hora de expiração
-  const expDate = new Date("2025-09-29T09:16:00"); 
-  // formato: "AAAA-MM-DDTHH:mm:ss"
-
-  // Função para verificar se já expirou
-  function verificarExpiracao() {
-    const agora = new Date();
-    if (agora >= expDate) {
-      overlay.style.display = "flex"; // bloqueia a tela
-    }
-  }
-
-  // Checa ao carregar
-  verificarExpiracao();
-
-  // ⏱️ Checa de 30 em 30 segundos (pode mudar para 1000 → 1 segundo)
-  setInterval(verificarExpiracao, 30000);
-
-  // Botão WhatsApp
-  btnWhatsApp.addEventListener("click", () => {
-    window.open(`https://wa.me/${numeroWhatsApp}?text=${mensagemWhatsApp}`, "_blank");
-  });
-});
-</script>
+    <script src="js/script.js"></script>
 </body>
 </html>
