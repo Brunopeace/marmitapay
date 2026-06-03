@@ -1,938 +1,405 @@
-if ('serviceWorker' in navigator) {
-window.addEventListener('load', function() {
- navigator.serviceWorker.register('service-worker.js').then(function(registration) {
-        console.log('Service Worker registrado com sucesso:', registration);
-      }, function(err) {
-        console.log('Falha ao registrar o Service Worker:', err);
-      });
-    });
-  }
+let clients = JSON.parse(localStorage.getItem('marmita_v4_data')) || [];
+let precoMarmitaPadrao = parseFloat(localStorage.getItem('marmita_preco_padrao')) || 15.00;
+let currentClientId = null;
 
-/* código para instalar o aplicativo */
-  let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    const installButton = document.createElement('button');
-    installButton.innerText = 'Instalar App';
-    installButton.style.position = 'fixed';
-    installButton.style.bottom = '10px';
-    installButton.style.right = '10px';
-    document.body.appendChild(installButton);
-    installButton.addEventListener('click', () => {
-        deferredPrompt.prompt();
-   deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-   console.log('Usuário aceitou instalar o app');
-            } else {
-   console.log('Usuário rejeitou instalar o app');
-            }
-            deferredPrompt = null;
-            installButton.remove();
-        });
-    });
-});
-setTimeout(() => {
-    if (deferredPrompt && installButton) {
-        installButton.remove();
-        console.log('Botão de instalação removido por inatividade.');
-    }
-}, 15000);
 
-document.addEventListener("DOMContentLoaded", () => {
-    const loading = document.getElementById("loading");
 
-    // Verifica se a sessão já foi iniciada
-    const hasVisited = sessionStorage.getItem("hasVisited");
+// Persistência local segura
+function save() {
+    localStorage.setItem('marmita_v4_data', JSON.stringify(clients));
+    render();
+}
 
-    if (!hasVisited) {
-        // Mostra o loader e salva a sessão como visitada
-        sessionStorage.setItem("hasVisited", "true");
-        setTimeout(() => {
-            loading.style.display = "none";
-        }, 3000); // Tempo de exibição do loader (2 segundos)
-    } else {
-        // Esconde o loader se a sessão já foi iniciada
-        loading.style.display = "none";
-    }
-});
+// Manipuladores globais de interface
+function openModal(id) { 
+    document.getElementById(id).style.display = "block"; 
+}
 
-function verificarAcesso() {
-    const uuidEsperado = ['d0709af9-0c05-4f56-8808-30f18efa7f86',
- 'c3e43422-1275-4c8b-84c1-eec682fadf1f'];
-    let uuidArmazenado = localStorage.getItem('uuid');
+function closeModal(id) { 
+    document.getElementById(id).style.display = "none"; 
+}
 
-    if (!uuidArmazenado) {
-        uuidArmazenado = gerarUUID();
-        localStorage.setItem('uuid', uuidArmazenado);
-    }
-
-    if (!uuidEsperado.includes(uuidArmazenado)) {
-        alert("Acesso Negado. Você não tem permissão para acessar esta página.");
-        window.location.href = "acessonegado.html";
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = "none";
     }
 }
 
-function gerarUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-}
+// --- CONTROLE DE CLIENTES (SALVANDO SEMPRE EM MAIÚSCULO) ---
+function addClient() {
+    const name = document.getElementById('name').value.toUpperCase().trim();
+    const phone = document.getElementById('phone').value.trim();
+    const limit = document.getElementById('limit').value;
 
-window.onscroll = function() {
-    const backToTopButton = document.getElementById('backToTop');
-    if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
-        backToTopButton.style.display = 'block';
-    } else {
-        backToTopButton.style.display = 'none';
-    }
-};
-document.getElementById('backToTop').onclick = function() {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-};
+    if (!name || !phone) return alert("Preencha Nome e WhatsApp.");
 
-function esvaziarLixeira() {
-    if (confirm("Tem certeza de que deseja esvaziar a lixeira? Isso removerá permanentemente todos os clientes nela.")) {
-        localStorage.removeItem('lixeira');
-        carregarLixeiraPagina();
-    }
-}
-
-function carregarLixeiraPagina() {
-    const lixeira = carregarLixeira();
-    const tbody = document.querySelector('#tabelaLixeira tbody');
-    tbody.innerHTML = '';
-    lixeira.forEach(cliente => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><input type="checkbox" class="checkboxCliente" data-nome="${cliente.nome}"></td>
-            <td>${cliente.nome}</td>
-            <td>
-<button onclick="restaurarCliente('${cliente.nome}')">Restaurar</button>
-                <button onclick="removerPermanentemente('${cliente.nome}')">Excluir</button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-    const esvaziarLixeiraButton = document.getElementById('esvaziarLixeira');
-    esvaziarLixeiraButton.style.display = lixeira.length === 0 ? 'none' : 'block';
-    const quantidadeClientes = contarClientesLixeira(); document.getElementById('quantidadeClientesLixeira').textContent = `Clientes na lixeira: ${quantidadeClientes}`;
-}
-document.addEventListener('DOMContentLoaded', function() {
-    carregarLixeiraPagina();
-});
-
-function contarClientesLixeira() {
-const lixeira = carregarLixeira();
-return lixeira.length;
-}
-
-function removerPermanentemente(nome) {
-    const lixeira = carregarLixeira();
-    const clienteIndex = lixeira.findIndex(c => c.nome.toLowerCase() === nome.toLowerCase());
-
-    if (clienteIndex !== -1) {
-        lixeira.splice(clienteIndex, 1);
-        salvarLixeira(lixeira);
-
-        window.location.reload();
-    }
-}
-
-function carregarLixeira() {
-    return JSON.parse(localStorage.getItem('lixeira')) || [];
-}
-
-function salvarLixeira(lixeira) {
-    localStorage.setItem('lixeira', JSON.stringify(lixeira));
-}
-
-window.addEventListener('load', carregarLixeiraPagina);
-
-function restaurarCliente(nome) {
-    const lixeira = carregarLixeira();
-    const clientes = carregarClientes();
-    const clienteIndex = lixeira.findIndex(c => c.nome === nome);
-
-    if (clienteIndex !== -1) {
-     const cliente = lixeira.splice(clienteIndex, 1)[0];
-        clientes.push(cliente);
-        salvarClientes(clientes);
-        salvarLixeira(lixeira);
-        carregarLixeiraPagina();
-        atualizarInfoClientes();
-        atualizarTabelaClientes();
-        window.location.reload();
-    }
-}
-
-function atualizarTabelaClientes() {
-    const clientes = carregarClientes();
-    const tabela = document.getElementById('corpoTabela');
-    tabela.innerHTML = '';
-
-    clientes.forEach(cliente => {
-        adicionarLinhaTabela(cliente.nome, cliente.telefone, cliente.data);
-    });
-}
-
-function carregarClientes() {
-    return JSON.parse(localStorage.getItem('clientes')) || [];
-}
-
-function salvarClientes(clientes) {
-    localStorage.setItem('clientes', JSON.stringify(clientes));
-}
-
-window.addEventListener('load', function() {
-    const clientes = carregarClientes();
-    clientes.forEach(cliente => adicionarLinhaTabela(cliente.nome, cliente.telefone, cliente.data));
-});
-
-function alternarLixeira() {
-const containerLixeira = document.getElementById('containerLixeira');
-const toggleButton = document.getElementById('toggleLixeira');
-if (containerLixeira.style.display === 'none') {
-containerLixeira.style.display = 'block';
-toggleButton.textContent = 'Fechar Lixeira';
-} else {
-containerLixeira.style.display = 'none';
-toggleButton.textContent = 'Abrir Lixeira';
-}
-}
-
-function excluirCliente(nome) {
-    const clientes = carregarClientes();
-    const clienteIndex = clientes.findIndex(c => c.nome.toLowerCase() === nome.toLowerCase());
-    if (clienteIndex !== -1) {
-        const somExclusao = new Audio('sounds/exclusao.mp3');
-        somExclusao.play();
-     const cliente = clientes.splice(clienteIndex, 1)[0];
-        salvarClientes(clientes);
-        const lixeira = carregarLixeira();
-        lixeira.push(cliente);
-        salvarLixeira(lixeira);
-
-        const linhaCliente = document.querySelector(`tr[data-nome="${nome}"]`);
-        if (linhaCliente) {
-            linhaCliente.classList.add('desintegrate');
-            setTimeout(() => {
-                linhaCliente.remove();
-                atualizarInfoClientes();
-                carregarLixeiraPagina();
-            }, 500);
-        }
-    }
-}
-
-function pesquisarClientesLixeira() {
-    const input = document.getElementById('pesquisarLixeira');
-    const filter = input.value.toLowerCase();
-    const trs = document.querySelectorAll('#tabelaLixeira tbody tr');
-
-    trs.forEach(tr => {
-        const td = tr.querySelector('td:nth-child(2)');
-        if (td) {
-            const textValue = td.textContent || td.innerText;
-            tr.style.display = textValue.toLowerCase().includes(filter) ? '' : 'none';
-        }
-    });
-}
-
-function toggleSelecionarTodos(source) {
-    const checkboxes = document.querySelectorAll('.checkboxCliente');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = source.checked;
-    });
-}
-
-function restaurarSelecionados() {
-    const checkboxes = document.querySelectorAll('.checkboxCliente:checked');
-    const lixeira = carregarLixeira();
-    let clientes = carregarClientes();
-    let clientesRestaurados = false;
-    checkboxes.forEach(checkbox => {
-        const nome = checkbox.getAttribute('data-nome');
-        const clienteIndex = lixeira.findIndex(c => c.nome === nome);
-        if (clienteIndex !== -1 && !clientes.some(cliente => cliente.nome === nome)) {
-            const cliente = lixeira.splice(clienteIndex, 1)[0];
-            clientes.push(cliente);
-            clientesRestaurados = true;
-        }
+    clients.push({
+        id: Date.now(),
+        name: name, // Forçado em caixa alta
+        phone: phone,
+        limit: parseFloat(limit) || 0,
+        debt: 0,
+        totalMarmitas: 0,
+        history: []
     });
 
-    salvarClientes(clientes);
-    salvarLixeira(lixeira);
-    carregarLixeiraPagina();
-    atualizarInfoClientes();
-    atualizarTabelaClientes();
-    carregarPagina();
-
-    if (clientesRestaurados) {
-        exibirFeedback("Clientes restaurados com sucesso");
-    } else {
-        exibirFeedback("Nenhum cliente foi restaurado. Clientes com o mesmo nome já existem.");
-    }
+    document.getElementById('name').value = '';
+    document.getElementById('phone').value = '';
+    document.getElementById('limit').value = '';
+    closeModal('modalAdd');
+    save();
 }
 
-function exibirFeedback(mensagem) {
-    let feedbackElement = document.getElementById('feedbackR');
-    if (!feedbackElement) {
-        feedbackElement = document.createElement('div');
-        feedbackElement.id = 'feedbackR';
-    document.body.appendChild(feedbackElement);
-    }
-    feedbackElement.innerText = mensagem;
-    feedbackElement.style.display = "block";
-    setTimeout(() => {
-        feedbackElement.style.display = "none";
-    }, 4000);
+function openEditModal(id) {
+    const client = clients.find(c => c.id === id);
+    document.getElementById('editId').value = client.id;
+    document.getElementById('editName').value = client.name;
+    document.getElementById('editPhone').value = client.phone;
+    document.getElementById('editLimit').value = client.limit;
+    openModal('modalEdit');
 }
 
-function adicionarCliente() {
-    const nome = document.getElementById('inputNome').value.trim();
-    const telefone = document.getElementById('inputTelefone').value.trim();
-    const data = new Date(document.getElementById('inputData').value);
-    if (nome && validarTelefone(telefone) && !isNaN(data.getTime())) {
-        const clientes = carregarClientes();
-        const clienteExistente = clientes.some(cliente => cliente.nome.toLowerCase() === nome.toLowerCase());
-        if (clienteExistente) {
-            alert("Cliente com o mesmo nome já existe.");
-            return;
-        }
-        const dataVencimento = calcularDataVencimento(data);
-        clientes.push({ nome: nome, telefone: telefone, data: dataVencimento });
-        salvarClientes(clientes);
-        window.location.reload();
-    } else {
-        alert("Por favor, preencha o nome, telefone válido e a data.");
-    }
-}
-
-function validarTelefone(telefone) {
-    return telefone.length === 11 && /^\d+$/.test(telefone);
-}
-
-function calcularDataVencimento(data) {
-    let dia = data.getDate() + 1;
-    let mes = data.getMonth() + 1;
-    let ano = data.getFullYear();
-    if (mes > 11) {
-        mes = 0;
-        ano += 1;
-    }
-    let dataVencimento = new Date(ano, mes, dia);
-    if (dataVencimento.getMonth() !== mes) {
-        dataVencimento = new Date(ano, mes + 1, 0);
-    }
-
-    return dataVencimento;
-}
-
-function adicionarLinhaTabela(nome, telefone, data) {
-    const tabela = document.getElementById('corpoTabela');
-    const novaLinha = document.createElement('tr');
-    novaLinha.setAttribute('data-nome', nome);
-
-    const celulaSelecionar = novaLinha.insertCell(0);
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.classList.add('cliente-checkbox');
-    celulaSelecionar.appendChild(checkbox);
-
-    const celulaNome = novaLinha.insertCell(1);
-    celulaNome.innerText = nome;
-
-    const celulaTelefone = novaLinha.insertCell(2);
-    celulaTelefone.innerText = telefone;
-
-    const celulaData = novaLinha.insertCell(3);
-    celulaData.innerText = new Date(data).toLocaleDateString('pt-BR');
-
-    const celulaAcoes = novaLinha.insertCell(4);
-
-    // Botão de editar
-    celulaAcoes.appendChild(criarBotao("Editar", function() {
-        const novoNome = prompt("Digite o novo nome do cliente:", nome);
-        const novoTelefone = prompt("Digite o novo telefone do cliente:", telefone);
-        const novaData = prompt("Digite a nova data de vencimento (DD/MM/AAAA):", new Date(data).toLocaleDateString('pt-BR'));
-        if (novoNome !== null && novoTelefone !== null && novaData !== null && novoNome && validarTelefone(novoTelefone)) {
-            const partesData = novaData.split('/');
-            if (partesData.length === 3) {
-                const novaDataVencimento = new Date(partesData[2], partesData[1] - 1, partesData[0]);
-                if (!isNaN(novaDataVencimento.getTime())) {
-                    const dataAnterior = new Date(data).toLocaleDateString('pt-BR');
-                    const novaDataFormatada = novaDataVencimento.toLocaleDateString('pt-BR');
-                    if (dataAnterior !== novaDataFormatada) {
-                        atualizarClientesAlterados(nome, dataAnterior, novaDataFormatada);
-                    }
-                    celulaNome.innerText = novoNome;
-                    celulaTelefone.innerText = novoTelefone;
-                    celulaData.innerText = novaDataFormatada;
-
-                    const clientes = carregarClientes();
-                    const clienteIndex = clientes.findIndex(c => c.nome.toLowerCase() === nome.toLowerCase());
-                    if (clienteIndex !== -1) {
-                        clientes[clienteIndex].nome = novoNome;
-                        clientes[clienteIndex].telefone = novoTelefone;
-                        clientes[clienteIndex].data = novaDataVencimento;
-                        salvarClientes(clientes);
-                        atualizarCorCelulaData(celulaData, novaDataVencimento);
-                        location.reload();
-                    }
-                }
-            }
-        }
-    }));
-
-    // Botão de excluir
-    celulaAcoes.appendChild(criarBotao("Excluir", function() {
-        if (confirm("Tem certeza de que deseja excluir este cliente?")) {
-            excluirCliente(nome);
-        }
-    }));
-
-    // Dropdown para enviar mensagem
-    const dropdownDiv = document.createElement('div');
-    dropdownDiv.classList.add('dropdown');
-
-    const botaoDropdown = document.createElement('button');
-    botaoDropdown.innerText = 'WhatsApp';
-    botaoDropdown.classList.add('dropbtn');
-
-    const conteudoDropdown = document.createElement('div');
-    conteudoDropdown.classList.add('dropdown-content');
-
-    // Botão para WhatsApp
-    const botaoWhatsApp = document.createElement('button');
-    botaoWhatsApp.innerText = 'Enviar para WhatsApp';
-    botaoWhatsApp.classList.add('WhatsApp');
-    botaoWhatsApp.onclick = function() {
-        const dataVencimentoDestacada = `\`${celulaData.innerText}\``;
-        const horaAtual = new Date().getHours();
-        let saudacao;
-        if (horaAtual >= 0 && horaAtual < 12) {
-            saudacao = "bom dia";
-        } else if (horaAtual >= 12 && horaAtual < 18) {
-            saudacao = "boa tarde";
-        } else {
-            saudacao = "boa noite";
-        }
-        const mensagem = encodeURIComponent(
-            `*Olá ${saudacao}, seu plano de canais está vencendo, com data de vencimento dia ${dataVencimentoDestacada}. Caso queira renovar após esta data, favor entrar em contato.* \n \n *PIX CELULAR* \n \n 11980778049 `
-        );
-        const telefoneCliente = telefone.replace(/\D/g, '');
-        abrirWhatsApp(telefoneCliente, mensagem);
-    };
-    conteudoDropdown.appendChild(botaoWhatsApp);
-
-    // Botão para Telegram
-    const botaoTelegram = document.createElement('button');
-botaoTelegram.innerText = 'Enviar para Telegram';
-botaoTelegram.classList.add('telegram');
-botaoTelegram.onclick = function() {
-    const dataVencimentoDestacada = celulaData.innerText;
-    const horaAtual = new Date().getHours();
-    let saudacao;
-    if (horaAtual >= 0 && horaAtual < 12) {
-        saudacao = "bom dia";
-    } else if (horaAtual >= 12 && horaAtual < 18) {
-        saudacao = "boa tarde";
-    } else {
-        saudacao = "boa noite";
-    }
-
-    const mensagem = encodeURIComponent(
-        `Olá ${saudacao}, seu plano de canais está vencendo, com data de vencimento dia ${dataVencimentoDestacada}. Caso queira renovar após esta data, favor entrar em contato. \n\n PIX CELULAR \n\n 11980778049`
-    );
-
-    const numeroTelefone = telefone.replace(/\D/g, ''); // Limpa o número de telefone
-    const usernameCliente = null; // Coloque aqui o username se disponível, ou deixe como null
-
-    if (usernameCliente) {
-        // Se houver username, tenta abrir o chat com o username
-        const telegramAppUrlUsername = `tg://resolve?domain=${usernameCliente}&text=${mensagem}`;
-        window.location.href = telegramAppUrlUsername;
-
-        // Fallback para o navegador
-        setTimeout(() => {
-            const urlTelegram = `https://t.me/${usernameCliente}?text=${mensagem}`;
-            window.open(urlTelegram, '_blank');
-        }, 500);
-    } else {
-        // Se não houver username, usa o link de compartilhamento com número de telefone
-        const urlTelegramShare = `https://t.me/share/url?url=tel:+${numeroTelefone}&text=${mensagem}`;
-        window.open(urlTelegramShare, '_blank');
-    }
-};
-    conteudoDropdown.appendChild(botaoTelegram);
-
-    dropdownDiv.appendChild(botaoDropdown);
-    dropdownDiv.appendChild(conteudoDropdown);
-    celulaAcoes.appendChild(dropdownDiv);
-
-    atualizarCorCelulaData(celulaData, data);
-    tabela.appendChild(novaLinha);
-}
-
-function criarBotao(texto, acao) {
-    const botao = document.createElement('button');
-    botao.innerText = texto;
-    botao.addEventListener('click', acao);
-    return botao;
-}
-
-function atualizarCorCelulaData(celulaData, dataVencimento) {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-
-    const diferencaDias = Math.ceil((dataVencimento - hoje) / (1000 * 60 * 60 * 24));
-
-    celulaData.classList.remove('red', 'yellow', 'orange');
-    if (diferencaDias < 0) {
-        celulaData.classList.add('red');
-    } else if (diferencaDias === 0) {
-        celulaData.classList.add('yellow');
-    } else if (diferencaDias === 2) {
-        celulaData.classList.add('orange');
-    }
-}
-
-function renovarCliente(nome) {
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    let clientesHoje = JSON.parse(localStorage.getItem('clientesRenovadosHoje')) || { data: hoje, nomes: [] };
-    if (clientesHoje.data !== hoje) {
-        clientesHoje = { data: hoje, nomes: [] };
-    }
-    if (!clientesHoje.nomes.includes(nome)) {
-        clientesHoje.nomes.push(nome);
-        localStorage.setItem('clientesRenovadosHoje', JSON.stringify(clientesHoje));
-        exibirClientesRenovadosHoje();
-    }
-}
-
-function registrarClienteRenovadoHoje(nomeCliente) {
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    let clientesHoje = JSON.parse(localStorage.getItem('clientesRenovadosHoje')) || { data: hoje, nomes: [] };
-
-    if (clientesHoje.data === hoje && !clientesHoje.nomes.includes(nomeCliente)) {
-        clientesHoje.nomes.push(nomeCliente);
-    } else if (clientesHoje.data !== hoje) {
-        clientesHoje = { data: hoje, nomes: [nomeCliente] };
-    }
-
-    localStorage.setItem('clientesRenovadosHoje', JSON.stringify(clientesHoje));
-}
-
-function exibirClientesRenovadosHoje() {
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    const clientesHoje = JSON.parse(localStorage.getItem('clientesRenovadosHoje')) || { data: hoje, nomes: [] };
-    const campoClientesRenovados = document.getElementById('infoClientes');
-
-    if (clientesHoje.nomes.length > 0) {
-        const listaClientes = clientesHoje.nomes.map(nome => `<li>${nome}</li>`).join('');
-        campoClientesRenovados.innerHTML = `<span class="titulo-clientes-renovados">Clientes renovados hoje:</span><ul>${listaClientes}</ul>`;
-    } else {
-        campoClientesRenovados.innerHTML = '<span class="nenhum-cliente-renovado">Nenhum cliente renovado hoje</span>';
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    exibirClientesRenovadosHoje();
-});
-
-function atualizarClientesAlterados(nome, dataAnterior, novaData) {
-const hoje = new Date().toLocaleDateString('pt-BR');
-let clientesAlterados = JSON.parse(localStorage.getItem('clientesAlterados')) || [];
-let clientesHoje = clientesAlterados.find(c => c.data === hoje);
-
-if (!clientesHoje) {
-clientesHoje = { data: hoje, nomes: [] };
-clientesAlterados.push(clientesHoje);
-}
-
-clientesHoje.nomes.push({ nome: nome, dataAnterior: dataAnterior, novaData: novaData });
-localStorage.setItem('clientesAlterados', JSON.stringify(clientesAlterados));
-exibirClientesAlterados();
-}
-
-function registrarClienteAlterado(nome) {
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    let clientesAlterados = JSON.parse(localStorage.getItem('clientesAlterados')) || [];
-    let clientesRenovados = JSON.parse(localStorage.getItem('clientesRenovadosHoje')) || { data: hoje, nomes: [] };
-    const clienteJaRenovado = clientesRenovados.nomes.some(c => c.nome === nome);
-
-    if (clienteJaRenovado) {
-        return;
-    }
-    let clientesHoje = clientesAlterados.find(c => c.data === hoje);
-    if (!clientesHoje) {
-        clientesHoje = { data: hoje, nomes: [] };
-        clientesAlterados.push(clientesHoje);
-    }
-    if (!clientesHoje.nomes.some(c => c.nome === nome)) {
-        clientesHoje.nomes.push({ nome });
-        localStorage.setItem('clientesAlterados', JSON.stringify(clientesAlterados));
-        exibirClientesAlterados();
-    }
-}
-
-function exibirClientesAlterados() {
-    const clientesAlterados = JSON.parse(localStorage.getItem('clientesAlterados')) || [];
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    const clientesHoje = clientesAlterados.find(c => c.data === hoje);
-    const campoClientesAlterados = document.getElementById('infoClientes');
-
-    if (clientesHoje && clientesHoje.nomes.length > 0) {
-        const nomesUnicos = [...new Set(clientesHoje.nomes.map(cliente => cliente.nome))];
-        const listaClientes = nomesUnicos.map(nome => `<li>${nome}</li>`).join('');
-        campoClientesAlterados.innerHTML = `<span class="titulo-clientes-renovados">Clientes renovados hoje:</span><ul>${listaClientes}</ul>`;
-    } else {
-        campoClientesAlterados.innerHTML = '<span class="nenhum-cliente-renovado">Nenhum cliente renovado hoje</span>';
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    exibirClientesAlterados();
-});
-
-function atualizarDataVencimento(nomeCliente, novaData) {
-    let clientes = JSON.parse(localStorage.getItem('clientes')) || [];
-    let clienteExistente = clientes.find(c => c.nome === nomeCliente);
-    if (clienteExistente) {
-        let dataAnterior = new Date(clienteExistente.data).toLocaleDateString('pt-BR');
-        let novaDataFormatada = new Date(novaData).toLocaleDateString('pt-BR');
-        if (dataAnterior !== novaDataFormatada) {
-            clienteExistente.data = novaData;
-            localStorage.setItem('clientes', JSON.stringify(clientes));
-            atualizarClientesAlterados(nomeCliente, dataAnterior, novaDataFormatada);
+function saveEdit() {
+    const id = parseInt(document.getElementById('editId').value);
+    const client = clients.find(c => c.id === id);
     
-        }
+    // Atualiza forçando caixa alta e limpando espaços espalhados
+    client.name = document.getElementById('editName').value.toUpperCase().trim();
+    client.phone = document.getElementById('editPhone').value.trim();
+    client.limit = parseFloat(document.getElementById('editLimit').value) || 0;
+
+    closeModal('modalEdit');
+    save();
+}
+
+function deleteClient(id) {
+    const client = clients.find(c => c.id === id);
+    if (confirm(`Excluir definitivamente ${client.name}?`)) {
+        clients = clients.filter(c => c.id !== id);
+        save();
     }
 }
 
-function editarCliente(nomeAntigo, novoNome, novoTelefone, novaDataVencimento) {
-            let clientes = carregarClientes();
-            let clienteExistente = clientes.find(c => c.nome.toLowerCase() === nomeAntigo.toLowerCase());
-            if (clienteExistente) {
-                let dataAnterior = new Date(clienteExistente.data).toLocaleDateString('pt-BR');
-                let novaDataFormatada = novaDataVencimento.toLocaleDateString('pt-BR');
-                if (dataAnterior !== novaDataFormatada) {
-                    clienteExistente.nome = novoNome;
-      clienteExistente.telefone = novoTelefone;
-      clienteExistente.data = novaDataVencimento;
+// --- LÓGICA DO PENDURA COM BARREIRA DE LIMITE ---
+function pendura(id) {
+    const client = clients.find(c => c.id === id);
+    document.getElementById('penduraId').value = id;
+    document.getElementById('penduraTitle').innerText = `Venda para ${client.name}`;
+    
+    // Injeta automaticamente o preço padrão configurado
+    document.getElementById('penduraValor').value = precoMarmitaPadrao.toFixed(2);
+    document.getElementById('penduraQtd').value = "1";
+    
+    openModal('modalPendura');
+}
 
-                    salvarClientes(clientes);
-                    atualizarClientesAlterados(novoNome, dataAnterior, novaDataFormatada);
-                }
-            }
+// Função para alterar o preço padrão ao clicar na pílula de saldo geral
+// Abre o modal customizado já preenchendo o valor atual no campo de texto
+function alterarPrecoMarmita() {
+    const input = document.getElementById('inputNovoPreco');
+    if (input) {
+        input.value = precoMarmitaPadrao.toFixed(2);
+    }
+    openModal('modalPreco');
+}
+
+// Valida e salva o novo preço vindo do modal
+function salvarNovoPrecoModal() {
+    const input = document.getElementById('inputNovoPreco');
+    if (!input) return;
+
+    // Converte e trata caso o usuário digite com vírgula
+    const novoPreco = parseFloat(input.value.replace(',', '.'));
+
+    if (!isNaN(novoPreco) && novoPreco > 0) {
+        precoMarmitaPadrao = novoPreco;
+        localStorage.setItem('marmita_preco_padrao', novoPreco); // Garante a persistência local
+        
+        closeModal('modalPreco');
+        
+        // Feedback visual rápido se você já tiver um sistema de alertas ou use o nativo temporariamente
+        alert(`Preço padrão atualizado para R$ ${novoPreco.toFixed(2)}!`);
+    } else {
+        alert("Por favor, insira um valor válido maior que zero.");
+    }
+}
+
+
+
+function confirmarPendura() {
+    const id = parseInt(document.getElementById('penduraId').value);
+    const valorUnitario = parseFloat(document.getElementById('penduraValor').value);
+    const qtd = parseInt(document.getElementById('penduraQtd').value);
+    const client = clients.find(c => c.id === id);
+
+    if (valorUnitario > 0 && qtd > 0) {
+        const valorTotalVenda = valorUnitario * qtd;
+        const novaDivida = (client.debt || 0) + valorTotalVenda;
+
+        // SISTEMA DE VALIDAÇÃO DE CRÉDITO
+        if (client.limit > 0 && novaDivida > client.limit) {
+            const msgElement = document.getElementById('limiteMsg');
+            
+            msgElement.innerHTML = `
+                <p><strong>⛔ Venda Bloqueada para ${client.name}</strong></p>
+                <p>O limite deste cliente é de <b>R$ ${client.limit.toFixed(2)}</b>.</p>
+                <p>Com este pedido, a conta chegaria a <b>R$ ${novaDivida.toFixed(2)}</b>.</p>
+                <p>Para não virar uma "bola de neve" e evitar prejuízos, receba um pagamento antes de liberar novas Quentinha(s).</p>
+            `;
+            
+            closeModal('modalPendura'); 
+            openModal('modalLimite');    
+            return; 
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            exibirClientesAlterados();
+        client.debt = (client.debt || 0) + valorTotalVenda;
+        client.totalMarmitas = (client.totalMarmitas || 0) + qtd;
+        
+        client.history.push({ 
+            tipo: 'Venda', 
+            valor: valorTotalVenda, 
+            qtd: qtd, 
+            data: new Date().toLocaleString('pt-BR') 
         });
 
-function criarBotao(texto, callback) {
-    const btn = document.createElement("button");
-    btn.innerText = texto;
-    btn.onclick = callback;
-    return btn;
-}
-
-function abrirWhatsApp(telefoneCliente, mensagem) {
-    window.open(`https://api.whatsapp.com/send?phone=55${telefoneCliente}&text=${mensagem}`, '_blank');
-}
-
-function pesquisarCliente() {
-    const termoPesquisa = document.getElementById('inputPesquisar').value.toLowerCase();
-    const linhas = document.getElementById('corpoTabela').getElementsByTagName('tr');
-
-    for (let i = 0; i < linhas.length; i++) {
-        const nome = linhas[i].getElementsByTagName('td')[1].innerText.toLowerCase();
-        if (nome.includes(termoPesquisa)) {
-            linhas[i].style.display = '';
-        } else {
-            linhas[i].style.display = 'none';
-        }
-    }
-}
-
-function atualizarInfoClientes() {
-    const totalVencidos = calcularTotalClientesVencidos();
-    const totalNaoVencidos = calcularTotalClientesNaoVencidos();
-document.getElementById('infoClientes2').innerHTML = `
-<span class="clientes-vencidos">Clientes vencidos: ${totalVencidos}</span><br>
-<span class="clientes-ativos">Clientes ativos: ${totalNaoVencidos}</span>
-    `;
-}
-
-function calcularTotalClientesVencidos() {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const clientes = carregarClientes();
-    let totalVencidos = 0;
-    clientes.forEach(function(cliente) {
-        const dataVencimento = new Date(cliente.data);
-        if (dataVencimento < hoje) {
-            totalVencidos++; }
-    });
-    return totalVencidos;
-}
-
-function calcularTotalClientesNaoVencidos() {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const clientes = carregarClientes();
-    let totalNaoVencidos = 0;
-    clientes.forEach(function(cliente) {
-        const dataVencimento = new Date(cliente.data);
-        if (dataVencimento >= hoje) {
-            totalNaoVencidos++;
-        }
-    });
-    return totalNaoVencidos;
-}
-
-function carregarPagina() {
-    const clientes = carregarClientes();
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-
-    const clientesOrdenados = {
-        doisDias: [],
-        hoje: [],
-        vencidos: [],
-        outros: []
-    };
-
-    clientes.forEach(cliente => {
-        const dataVencimento = new Date(cliente.data);
-        const diferencaDias = Math.ceil((dataVencimento - hoje) / (1000 * 60 * 60 * 24));
-        
-        if (diferencaDias === 2) {
-            clientesOrdenados.doisDias.push(cliente);
-        } else if (diferencaDias === 0) {
-            clientesOrdenados.hoje.push(cliente);
-        } else if (diferencaDias < 0) {
-            clientesOrdenados.vencidos.push(cliente);
-        } else {
-            clientesOrdenados.outros.push(cliente);
-        }
-    });
-
-    const tabela = document.getElementById('corpoTabela');
-    tabela.innerHTML = '';
-    clientesOrdenados.doisDias.forEach(cliente => {
-        adicionarLinhaTabela(cliente.nome, cliente.telefone, new Date(cliente.data));
-    });
-
-    clientesOrdenados.hoje.forEach(cliente => {
-        adicionarLinhaTabela(cliente.nome, cliente.telefone, new Date(cliente.data));
-    });
-
-    clientesOrdenados.outros.forEach(cliente => {
-        adicionarLinhaTabela(cliente.nome, cliente.telefone, new Date(cliente.data));
-    });
-
-    clientesOrdenados.vencidos.forEach(cliente => {
-        adicionarLinhaTabela(cliente.nome, cliente.telefone, new Date(cliente.data));
-    });
-    atualizarInfoClientes();
-}
-
-function toggleDarkMode() {
-    const body = document.body;
-    body.classList.toggle('dark-mode');
-    const footer = document.querySelector('footer');
-    footer.classList.toggle('footer-light');
-    const isDarkMode = body.classList.contains('dark-mode');
-    localStorage.setItem('dark-mode', isDarkMode);
-}
-
-function carregarDarkMode() {
-    const isDarkMode = localStorage.getItem('dark-mode') === 'true';
-    const body = document.body;
-    const footer = document.querySelector('footer');
-    if (isDarkMode) {
-        body.classList.add('dark-mode');
-        footer.classList.remove('footer-light');
+        closeModal('modalPendura');
+        save();
     } else {
-        footer.classList.add('footer-light');
+        alert("Insira valores válidos!");
     }
 }
 
-function exportarClientes() {
-    const clientes = carregarClientes();
-    const lixeira = carregarLixeira();
-    const todosClientes = [...clientes, ...lixeira];
-    const jsonClientes = JSON.stringify(todosClientes, null, 2);
-
-    const blob = new Blob([jsonClientes], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'clientes_exportados.json';
-    a.click();
-
-    URL.revokeObjectURL(url);
+// --- NOVO SISTEMA DE PAGAMENTO BONITO EM 2 PASSOS ---
+function pagar(id) {
+    const client = clients.find(c => c.id === id);
+    document.getElementById('pagarId').value = id;
+    document.getElementById('infoDividaAtual').innerText = `Dívida total atual: R$ ${client.debt.toFixed(2)}`;
+    document.getElementById('inputValorPago').value = client.debt.toFixed(2);
+    
+    openModal('modalPagarValor');
 }
 
-function importarClientes(event) {
-    const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = JSON.parse(e.target.result);
-                let clientesImportados = [];
-                let lixeiraImportada = [];
-                if (Array.isArray(data)) {
-        clientesImportados = data;
-                } else if (typeof data === 'object') {
-        clientesImportados = data.clientes || [];
-           lixeiraImportada = data.lixeira || [];
-                    if (!clientesImportados.length && !lixeiraImportada.length) {
-                        for (let key in data) {
-                            if (key.toLowerCase().includes('cliente')) {
-         clientesImportados = data[key];
-                            } else if (key.toLowerCase().includes('lixeira')) {
-           lixeiraImportada = data[key];
-                            }
-                        }
-                    }
-                }
-                const clientesAtuais = carregarClientes();
-                const lixeiraAtual = carregarLixeira();
-                const mapaClientes = new Map();
-                clientesAtuais.forEach(cliente => {
-mapaClientes.set(cliente.nome.toLowerCase(), cliente);
-                });
-clientesImportados.forEach(clienteImportado => {
-                    const nomeClienteImportado = clienteImportado.nome.toLowerCase();
-                    if (mapaClientes.has(nomeClienteImportado)) {
-                    const clienteExistente = mapaClientes.get(nomeClienteImportado);
-   clienteExistente.telefone = clienteImportado.telefone;
-   clienteExistente.data = clienteImportado.data;
-                    } else {
-                        clientesAtuais.push(clienteImportado);
-                    }
-                });
-                const mapaLixeira = new Map();
-                lixeiraAtual.forEach(cliente => {
-mapaLixeira.set(cliente.nome.toLowerCase(), cliente);
-                });
-lixeiraImportada.forEach(clienteImportado => {
-                    const nomeClienteImportado = clienteImportado.nome.toLowerCase();
-                    if (mapaLixeira.has(nomeClienteImportado)) {
-                        const clienteExistente = mapaLixeira.get(nomeClienteImportado);
-                        clienteExistente.telefone = clienteImportado.telefone;
-                        clienteExistente.data = clienteImportado.data;
-                    } else {
-                        lixeiraAtual.push(clienteImportado);
-                    }
-                });
-                salvarClientes(clientesAtuais);
-                salvarLixeira(lixeiraAtual);
-      alert("Importação realizada com sucesso!");
-                window.location.reload();
-            } catch (error) {
-alert("Erro ao importar o arquivo: " + error.message);
-            }
-        };
-        reader.readAsText(file);
+function proximoPassoPagamento() {
+    const id = parseInt(document.getElementById('pagarId').value);
+    const valorPago = parseFloat(document.getElementById('inputValorPago').value);
+    const client = clients.find(c => c.id === id);
+
+    if (isNaN(valorPago) || valorPago <= 0) return alert("Insira um valor válido!");
+
+    // Abatimento automático calculado por ticket médio de consumo
+    let sugestao = 0;
+    if (client.debt > 0 && client.totalMarmitas > 0) {
+        const precoMedio = client.debt / client.totalMarmitas;
+        sugestao = Math.floor(valorPago / precoMedio);
     }
+
+    document.getElementById('infoPagamentoFeito').innerText = `Valor recebido: R$ ${valorPago.toFixed(2)}`;
+    document.getElementById('spanMarmitasPendentes').innerText = client.totalMarmitas;
+    document.getElementById('inputQtdAbatida').value = sugestao;
+
+    closeModal('modalPagarValor');
+    openModal('modalPagarMarmitas');
 }
 
-document.addEventListener('DOMContentLoaded', function() { document.getElementById('importarClientes').addEventListener('change', importarClientes);
-    if (typeof displayClients === 'function') {
-        displayClients();
-    }
-});
+function confirmarPagamentoFinal() {
+    const id = parseInt(document.getElementById('pagarId').value);
+    const valorPago = parseFloat(document.getElementById('inputValorPago').value);
+    const qtdAbatida = parseInt(document.getElementById('inputQtdAbatida').value);
+    const client = clients.find(c => c.id === id);
 
-function verificarBackupDiario() {
-    const hoje = new Date().toLocaleDateString();
-    const ultimoBackup = localStorage.getItem('ultimoBackup');
-    if (ultimoBackup !== hoje) {
-        const clientes = carregarClientes();
-        const lixeira = carregarLixeira();
-        const backupData = {
-            data: hoje,
-            clientes: clientes || [],
-            lixeira: lixeira || []
-        };
+    if (!client) return alert("Cliente não encontrado!");
 
-        try {
- const backupJson = JSON.stringify(backupData, null, 2);
-            const blob = new Blob([backupJson], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `backup-${hoje}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            localStorage.setItem('ultimoBackup', hoje);
-        } catch (error) {
-            console.error("Erro ao gerar o backup diário:", error);
-            alert("Houve um erro ao gerar o backup diário. Tente novamente.");
-        }
-    }
-}
-
-window.addEventListener('load', verificarBackupDiario);
-setInterval(verificarBackupDiario, 60 * 60 * 1000);
-
-document.getElementById('select-all').addEventListener('change', function() {
-    const checkboxes = document.querySelectorAll('.cliente-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = this.checked;
-    });
-});
-
-function excluirClientesSelecionados() {
-    const checkboxes = document.querySelectorAll('.cliente-checkbox:checked');
-    const clientes = carregarClientes();
-    const lixeira = carregarLixeira();
-    let clientesExcluidos = false;
-
-    checkboxes.forEach(checkbox => {
-        const nome = checkbox.closest('tr').getAttribute('data-nome');
-        const clienteIndex = clientes.findIndex(c => c.nome.toLowerCase() === nome.toLowerCase());
-
-        if (clienteIndex !== -1) {
-    const cliente = clientes.splice(clienteIndex, 1)[0];
-            lixeira.push(cliente);
-            clientesExcluidos = true;
-        }
+    // 1. Primeiro salva a ação no histórico do cliente com os valores originais informados
+    client.history.push({ 
+        tipo: 'Pago', 
+        valor: valorPago, 
+        qtdAbatida: qtdAbatida || 0,
+        data: new Date().toLocaleString('pt-BR') 
     });
 
-    if (clientesExcluidos) {
-        const somExclusao = new Audio('sounds/exclusao.mp3');
-        somExclusao.play();
+    // 2. Realiza o abatimento dos valores no saldo do cliente
+    client.debt -= valorPago;
+    if (!isNaN(qtdAbatida)) {
+        client.totalMarmitas = Math.max(0, (client.totalMarmitas || 0) - qtdAbatida);
     }
-    salvarClientes(clientes);
-    salvarLixeira(lixeira);
-    carregarLixeiraPagina();
-    atualizarTabelaClientes();
-    atualizarInfoClientes();
-    carregarPagina();
 
-    if (clientesExcluidos) {
-        const feedbackElement = document.getElementById('feedback');
-        feedbackElement.innerText = "Clientes excluídos com sucesso";
-        feedbackElement.style.display = "block";
-        setTimeout(() => {
-            feedbackElement.style.display = "none";
-        }, 4000);
+    // 3. Trava de segurança: Se a dívida foi totalmente quitada (ou ficou negativa por digitação), zera as pendências
+    // Sem mexer ou apagar o array client.history!
+    if (client.debt <= 0) {
+        client.debt = 0;
+        client.totalMarmitas = 0;
+    }
+
+    // 4. Fecha a tela e sincroniza no LocalStorage
+    closeModal('modalPagarMarmitas');
+    save();
+}
+
+
+// --- EXTRATO EXCLUSIVO COM SCROLL VERTICAL ---
+function showHistory(id) {
+    currentClientId = id; // Guarda o ID para o filtro
+    const client = clients.find(c => c.id === id);
+    const content = document.getElementById('historyContent');
+    const filtroMes = document.getElementById('filtroMes');
+    const resumoMensal = document.getElementById('resumoMensal');
+    
+    if (!client) return;
+    document.getElementById('modalTitle').innerText = client.name;
+    
+    // Armazena o mês que já estava selecionado antes de atualizar a tela (se houver)
+    const mesPreSelecionado = filtroMes ? filtroMes.value : 'todos';
+    
+    // 1. Preencher opções de meses isolando estritamente os caracteres de MM/AAAA (ex: 06/2026)
+    if (!client.history || client.history.length === 0) {
+        filtroMes.innerHTML = '<option value="todos">Todos os meses</option>';
+    } else {
+        // Pega apenas do caractere 0 ao 10 (data pura), depois remove o dia pegando a partir do caractere 3 (MM/AAAA)
+        const meses = [...new Set(client.history.map(h => {
+            const dataPura = h.data.split(' ')[0]; // Separa a data do horário pelo espaço
+            return dataPura.substring(3); // Devolve apenas MM/AAAA
+        }))].filter(m => m); // Remove valores inválidos
+
+        filtroMes.innerHTML = '<option value="todos">Todos os meses</option>' + 
+                              meses.map(m => `<option value="${m}">${m}</option>`).join('');
+    }
+
+    // Restaura o valor selecionado se ele ainda existir nas opções
+    if ([...filtroMes.options].some(opt => opt.value === mesPreSelecionado)) {
+        filtroMes.value = mesPreSelecionado;
+    } else {
+        filtroMes.value = 'todos';
+    }
+
+    // 2. Filtrar dados tratando a string da data da mesma forma limpa
+    const mesSelecionado = filtroMes.value;
+    const historicoFiltrado = mesSelecionado === 'todos' 
+        ? (client.history || []) 
+        : (client.history || []).filter(h => {
+            const dataPura = h.data.split(' ')[0];
+            return dataPura.substring(3) === mesSelecionado;
+        });
+
+    // 3. Calcular resumo financeiro com base no filtro aplicado
+    const totalVendas = historicoFiltrado.filter(h => h.tipo === 'Venda').reduce((acc, h) => acc + (h.valor || 0), 0);
+    const totalPagos = historicoFiltrado.filter(h => h.tipo === 'Pago').reduce((acc, h) => acc + (h.valor || 0), 0);
+    
+    resumoMensal.innerHTML = `
+        <div style="display:flex; justify-content:space-between; font-family: sans-serif; font-weight: 600;">
+            <span style="color:#475569;">Vendas: <b style="color:#e74c3c;">R$ ${totalVendas.toFixed(2)}</b></span>
+            <span style="color:#475569;">Pagos: <b style="color:#27ae60;">R$ ${totalPagos.toFixed(2)}</b></span>
+        </div>
+    `;
+
+    // 4. Renderizar a lista de transações na tela
+    if (historicoFiltrado.length === 0) {
+        content.innerHTML = '<p style="text-align:center; padding:20px; color:#94a3b8; font-family: sans-serif;">Nenhum registro neste mês.</p>';
+    } else {
+        content.innerHTML = [...historicoFiltrado].reverse().map(h => {
+            const isVenda = h.tipo === 'Venda';
+            const color = isVenda ? '#e74c3c' : '#27ae60';
+            const icon = isVenda ? 'arrow-down-circle' : 'arrow-up-circle';
+            
+            let detalheMarmitas = isVenda 
+                ? (h.qtd ? `<span>${h.qtd} - Quentinha</span>` : '')
+                : `<br><small style="color:#27ae60; font-weight:500;">↳ Quitadas: ${h.qtdAbatida || 0} Quentinha</small>`;
+
+            return `
+                <div style="padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-family: sans-serif;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: ${color}; font-size: 0.9rem;">
+                                <i class="bi bi-${icon}"></i> ${h.tipo.toUpperCase()}
+                            </strong>
+                            ${isVenda ? detalheMarmitas : ''}
+                        </div>
+                        <span style="font-weight: bold; color: ${color};">
+                            ${isVenda ? '-' : '+'} R$ ${h.valor.toFixed(2)}
+                        </span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+                        <small style="color: #888;">${h.data}</small>
+                        ${!isVenda ? detalheMarmitas : ''}
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    openModal('modalHistory');
+}
+
+
+
+function sendWhatsApp(id) {
+    const client = clients.find(c => c.id === id);
+    const msg = `Olá ${client.name}! Seu saldo pendente no momento é R$ ${client.debt.toFixed(2)} (${client.totalMarmitas || 0} quentinhas pendentes).`;
+    window.open(`https://api.whatsapp.com/send?phone=55${client.phone.replace(/\D/g,'')}&text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// --- RENDERIZADOR COMPLETO DA INTERFACE ---
+function render() {
+    const list = document.getElementById('clientList');
+    const searchInput = document.getElementById('searchInput');
+    const search = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    
+    if (!list) return;
+    list.innerHTML = '';
+
+    // Filtragem bidirecional (nome ou número)
+    const filtered = clients.filter(c => {
+        const nome = (c.name || "").toLowerCase();
+        const telefone = (c.phone || "");
+        return nome.includes(search) || telefone.includes(search);
+    });
+
+    const totalDevedorGeral = clients.reduce((acc, c) => acc + (c.debt || 0), 0);
+
+    // Ordenação inteligente: Clientes com maiores dívidas aparecem primeiro
+    filtered.sort((a,b) => (b.debt || 0) - (a.debt || 0)).forEach(c => {
+        const badgeMarmitas = c.totalMarmitas > 0 
+            ? `<span class="badge-marmitas">Devendo: ${c.totalMarmitas}</span>` 
+            : "✅";
+            
+        const classeStatus = (c.debt > 0) ? 'card-devedor' : 'card-quitado';
+
+        list.innerHTML += `
+            <div class="card ${classeStatus}">
+                <div class="client-header">
+                    <div class="client-info-box">
+                        <span class="client-name">${c.name}</span><br>
+                        <small>WhatsApp: ${c.phone}</small> 
+                    </div>
+                    <span class="debt-value">R$ ${(c.debt || 0).toFixed(2)}</span>
+                </div>
+                
+                <div class="admin-actions">
+                    <button class="btn-mini btn-mini-edit" onclick="openEditModal(${c.id})">✏️ Editar</button>
+                    <button class="btn-mini btn-mini-del" onclick="deleteClient(${c.id})">🗑️ Excluir</button>
+                    ${badgeMarmitas}
+                </div>
+
+                <div class="grid-actions">
+                    <button class="btn-action btn-pendura" onclick="pendura(${c.id})">+ Pendurar</button>
+                    <button class="btn-action btn-pagar" onclick="pagar(${c.id})">Pagou</button>
+                    <button class="btn-action btn-hist" onclick="showHistory(${c.id})">Extrato</button>
+                    <button class="btn-action btn-whats" onclick="sendWhatsApp(${c.id})">
+                        <i class="bi bi-whatsapp"></i> Cobrar via WhatsApp
+                    </button>
+                </div>
+            </div>`;
+    });
+    
+    const totalDisplay = document.querySelector('#total-geral .total-value');
+    if (totalDisplay) {
+        totalDisplay.innerText = `R$ ${totalDevedorGeral.toFixed(2)}`;
     }
 }
 
+
+
+// Inicialização segura da aplicação
 window.onload = function() {
-
-    carregarPagina();
-    carregarDarkMode();
-    verificarBackupDiario();
-    exibirClientesAlterados();
-    verificarAcesso();
-    window.onscroll();
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.value = ''; 
+    render();
 };
