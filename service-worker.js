@@ -2,8 +2,8 @@ const CACHE_NAME = 'marmitapay-v1';
 const urlsToCache = [
   './',
   './index.html',
-  './style.css',
-  './app.js'
+  './css/style.css',
+  './javascript/scrip.js'
 ];
 
 // Instala o service worker e faz o cache dos arquivos
