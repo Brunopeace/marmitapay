@@ -1,3 +1,8 @@
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(() => console.log('Service Worker registrado com sucesso!'));
+  }
+
 let clients = JSON.parse(localStorage.getItem('marmita_v4_data')) || [];
 let precoMarmitaPadrao = parseFloat(localStorage.getItem('marmita_preco_padrao')) || 15.00;
 let currentClientId = null;
