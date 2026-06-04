@@ -1,4 +1,4 @@
-const CACHE_NAME = 'marmitapay-v1';
+const CACHE_NAME = 'marmitapay-v2';
 const urlsToCache = [
   './',
   './index.html',
