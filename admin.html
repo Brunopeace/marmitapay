@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - Controle de Licenças</title>
+
+    <style>
+    /* ==========================================================================
+       ESTILOS GERAIS DO PAINEL
+       ========================================================================== */
+    body { 
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+        background: #0f172a; 
+        color: #f8fafc; 
+        padding: 20px; 
+        margin: 0;
+        -webkit-font-smoothing: antialiased;
+    }
+    
+    .container { 
+        max-width: 900px; 
+        margin: 0 auto; 
+        padding: 10px;
+    }
+    
+    h1 { 
+        color: #10b981; 
+        font-size: 1.8rem;
+        margin-bottom: 25px;
+    }
+
+    h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #f1f5f9;
+        font-size: 1.2rem;
+    }
+    
+    /* Card Admin Principal */
+    .card-admin { 
+        background: #1e293b; 
+        padding: 24px; 
+        border-radius: 12px; 
+        margin-bottom: 24px; 
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        border: 1px solid #334155;
+    }
+    
+    /* Inputs de Data e Texto (Formulário Superior) */
+    input[type="date"], input[type="text"] { 
+        padding: 10px 14px; 
+        border-radius: 8px; 
+        border: 1px solid #334155; 
+        background: #0f172a; 
+        color: #f8fafc; 
+        font-weight: 600; 
+        font-size: 0.95rem;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="date"]:focus, input[type="text"]:focus {
+        border-color: #10b981;
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+    }
+    
+    /* ==========================================================================
+       CONTAINER COM BARRA DE ROLAGEM (Evita empurrar o layout)
+       ========================================================================== */
+    .table-container {
+        width: 100%;
+        max-height: 400px; /* Limita a altura da tabela */
+        overflow-y: auto;  /* Ativa a rolagem vertical */
+        overflow-x: hidden; /* Evita rolagem lateral desnecessária no PC */
+        border-radius: 8px;
+        border: 1px solid #334155;
+        padding-right: 4px;
+    }
+
+    /* Customização da Barra de Rolagem Escura */
+    .table-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    .table-container::-webkit-scrollbar-track {
+        background: #0f172a;
+        border-radius: 8px;
+    }
+    .table-container::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 8px;
+        border: 2px solid #0f172a;
+    }
+    .table-container::-webkit-scrollbar-thumb:hover {
+        background: #10b981; /* Fica verde ao passar o cursor */
+    }
+
+    /* ==========================================================================
+       ESTILIZAÇÃO BASE DA TABELA (Modo Computador / Desktop)
+       ========================================================================== */
+    table { 
+        width: 100%; 
+        border-collapse: separate; 
+        border-spacing: 0;
+        margin-top: 0; 
+    }
+    
+    th, td { 
+        padding: 14px 16px; 
+        text-align: left; 
+        border-bottom: 1px solid #334155; 
+    }
+    
+    /* Cabeçalho Fixo ao Rolar a Tabela */
+    th { 
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #334155; 
+        color: #94a3b8;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+    }
+
+    th:first-child { border-top-left-radius: 8px; }
+    th:last-child { border-top-right-radius: 8px; }
+    
+    td {
+        color: #cbd5e1;
+        font-size: 0.95rem;
+        vertical-align: middle;
+    }
+
+    td strong {
+        color: #38bdf8; /* Cor azul de destaque para o ID do cliente */
+    }
+
+    /* Inputs internos da tabela (Coluna de Vencimento) */
+    td input[type="date"] {
+        padding: 6px 10px;
+        font-size: 0.85rem;
+    }
+    
+    /* ==========================================================================
+       SISTEMA DE BOTÕES TRABALHADOS
+       ========================================================================== */
+    .btn { 
+        background: #10b981; 
+        color: white; 
+        border: none; 
+        padding: 10px 16px; 
+        border-radius: 8px; 
+        cursor: pointer; 
+        font-weight: bold; 
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+
+    .btn:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+
+    .btn:active {
+        transform: translateY(0);
+    }
+    
+    .btn-salvar { background: #2563eb; }
+    .btn-salvar:hover { background: #1d4ed8; }
+    
+    .btn-deletar { background: #dc2626; }
+    .btn-deletar:hover { background: #b91c1c; }
+
+    /* ==========================================================================
+       RESPONSIVIDADE: Transforma a tabela em Cards para Celulares (Corrigido)
+       ========================================================================== */
+    @media (max-width: 680px) {
+        .table-container {
+            max-height: 520px; /* Entrega mais espaço de visualização no celular */
+            overflow-y: auto;
+            border: none; /* Remove a borda exterior já que os cards já se separam */
+            padding-right: 0;
+        }
+
+        /* Desconstrói a tabela em blocos empilhados */
+        table, thead, tbody, th, td, tr { 
+            display: block; 
+        }
+        
+        thead tr { 
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+        }
+        
+        tr { 
+            background: #0f172a;
+            border: 1px solid #334155; 
+            border-radius: 12px;
+            margin-bottom: 20px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        }
+        
+        td { 
+            border: none;
+            border-bottom: 1px solid #1e293b; 
+            position: relative;
+            padding: 12px 0 12px 40%; 
+            text-align: left;
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        /* Aplica as etiquetas dinamicamente apenas nas informações textuais */
+        td:before { 
+            position: absolute;
+            left: 0;
+            width: 35%; 
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            color: #64748b;
+            letter-spacing: 0.05em;
+        }
+        
+        /* Define os títulos das pseudo-linhas */
+        td:nth-of-type(1):before { content: "ID / Empresa"; }
+        td:nth-of-type(2):before { content: "Nome"; }
+        td:nth-of-type(3):before { content: "Vencimento"; }
+
+        /* Ajuste do input de data para alinhar perfeitamente no card */
+        td input[type="date"] {
+            width: 100%;
+            max-width: 180px;
+            box-sizing: border-box;
+            padding: 8px;
+            text-align: center;
+        }
+        
+        /* 🛠️ ORGANIZAÇÃO DOS BOTÕES EM GRID (Sem sobrepor o texto "AÇÕES") */
+        td:last-child {
+            border-bottom: none;
+            padding: 16px 0 0 0; /* Remove recuos laterais para usar a área total */
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Divide a primeira linha em 2 botões iguais */
+            gap: 10px;
+        }
+
+        /* Remove completamente o marcador de texto para a linha de ações */
+        td:last-child:before { 
+            content: none !important; 
+        }
+
+        /* Expande o botão Excluir para ocupar as duas colunas inteiras na parte de baixo */
+        td:last-child .btn-deletar {
+            grid-column: span 2;
+        }
+
+        /* Botões robustos e fáceis de clicar no celular */
+        .btn {
+            width: 100%;
+            font-size: 0.9rem;
+            padding: 12px 8px;
+            box-sizing: border-box;
+            border-radius: 8px;
+        }
+    }
+</style>
+
+
+</head>
+<body>
+
+<div class="container">
+    <h1>Painel de Controle Comercial 🛡️</h1>
+    
+    <!-- Formulário para Cadastrar Novo Cliente/Usuário -->
+    <div class="card-admin">
+        <h3>Cadastrar Novo Cliente</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="novoClienteId" placeholder="ID do Cliente (ex: joaomarmitas)">
+            <input type="text" id="novoClienteNome" placeholder="Nome do Comércio">
+            <input type="date" id="novaDataVencimento">
+            <button class="btn" id="btnCadastrar">Criar Licença</button>
+        </div>
+    </div>
+
+    <!-- Lista de Clientes Ativos -->
+    <div class="card-admin">
+    <h3>Gerenciamento de Usuários</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID / Empresa</th>
+                    <th>Nome</th>
+                    <th>Vencimento Atual</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tabelaUsuarios">
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #64748b; padding: 20px;">Carregando licenças...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+  import { getDatabase, ref, set, update, onValue, remove } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
+
+  // Suas credenciais oficiais do Marmita Pay
+  const firebaseConfig = {
+    apiKey: "AIzaSyCl9ESVdH3nj8pkCaCcQzbmV5yKrJAoRsw",
+    authDomain: "marmita-pay.firebaseapp.com",
+    databaseURL: "https://marmita-pay-default-rtdb.firebaseio.com",
+    projectId: "marmita-pay",
+    storageBucket: "marmita-pay.firebasestorage.app",
+    messagingSenderId: "326376221568",
+    appId: "1:326376221568:web:cd436a0b2429ebdc4faf65"
+  };
+
+  // Inicializa o Firebase e o Banco
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+
+  // URL Base oficial do seu aplicativo hospedado
+  const urlBaseApp = "https://brunopeace.github.io/marmitapay/";
+
+  // Escuta o banco de dados e monta a tabela de clientes automaticamente
+  const usuariosRef = ref(database, 'usuarios');
+  onValue(usuariosRef, (snapshot) => {
+      const tabela = document.getElementById('tabelaUsuarios');
+      tabela.innerHTML = '';
+      
+      const dadosGerais = snapshot.val();
+      if (!dadosGerais) {
+          tabela.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b;">Nenhuma licença cadastrada.</td></tr>`;
+          return;
+      }
+
+      // Passa por cada usuário cadastrado no Firebase
+      Object.keys(dadosGerais).forEach((idCliente) => {
+          const dados = dadosGerais[idCliente];
+          
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+              <td><strong>${idCliente}</strong></td>
+              <td>${dados.nome}</td>
+              <td><input type="date" id="data_${idCliente}" value="${dados.vencimento}"></td>
+              <td>
+                  <button class="btn btn-salvar" data-id="${idCliente}" data-acao="salvar">Atualizar</button>
+                  <button class="btn" style="background: #64748b; margin-left: 5px;" data-id="${idCliente}" data-acao="copiar" title="Copiar link do cliente">Copiar Link</button>
+                  <button class="btn btn-deletar" data-id="${idCliente}" data-acao="deletar">Excluir</button>
+              </td>
+          `;
+          tabela.appendChild(tr);
+      });
+  });
+
+  // Função para Cadastrar Novo Cliente e já copiar o link gerado
+  document.getElementById('btnCadastrar').onclick = function() {  
+      const id = document.getElementById('novoClienteId').value.trim().toLowerCase().replace(/\s+/g, '');  
+      const nome = document.getElementById('novoClienteNome').value.trim();  
+      const vencimento = document.getElementById('novaDataVencimento').value;  
+  
+      if (!id || !nome || !vencimento) {  
+          alert('Preencha todos os campos antes de criar a licença!');  
+          return;  
+      }  
+  
+      // Grava os dados na coleção 'usuarios/id_do_cliente'  
+      set(ref(database, 'usuarios/' + id), {  
+          nome: nome,  
+          vencimento: vencimento  
+      }).then(() => {  
+          const linkGerado = `${urlBaseApp}?id=${id}`;
+          
+          // Copia o link automaticamente para a área de transferência do seu dispositivo
+          navigator.clipboard.writeText(linkGerado).then(() => {
+              alert(`Licença de '${nome}' criada com sucesso!`);
+          }).catch(() => {
+              alert(`Licença criada! Envie este link:\n\n${linkGerado}`);
+          });
+
+          document.getElementById('novoClienteId').value = '';  
+          document.getElementById('novoClienteNome').value = '';  
+          document.getElementById('novaDataVencimento').value = '';  
+      }).catch(erro => alert("Erro ao cadastrar: " + erro));  
+  };
+
+  // Gerenciador de cliques dinâmicos na tabela (Atualizar, Copiar ou Excluir)
+  document.getElementById('tabelaUsuarios').onclick = function(e) {
+      const botao = e.target;
+      const idCliente = botao.getAttribute('data-id');
+      const acao = botao.getAttribute('data-acao');
+
+      if (!idCliente) return;
+
+      // Ação de Atualizar Data
+      if (acao === 'salvar') {
+          const novaData = document.getElementById(`data_${idCliente}`).value;
+          if (!novaData) return alert("Insira uma data válida!");
+
+          update(ref(database, 'usuarios/' + idCliente), {
+              vencimento: novaData
+          }).then(() => {
+              alert(`Vencimento do ID '${idCliente}' atualizado com sucesso!`);
+          });
+      } 
+      
+      // NOVA AÇÃO: Copiar link individual da tabela
+      else if (acao === 'copiar') {
+          const linkCliente = `${urlBaseApp}?id=${idCliente}`;
+          navigator.clipboard.writeText(linkCliente).then(() => {
+              // Feedback visual rápido mudando o texto do botão temporariamente
+              const textoOriginal = botao.innerText;
+              botao.innerText = "✅ Copiado!";
+              botao.style.backgroundColor = "#10b981";
+              
+              setTimeout(() => {
+                  botao.innerText = textoOriginal;
+                  botao.style.backgroundColor = "#64748b";
+              }, 1500);
+          }).catch(() => alert("Erro ao copiar o link. Tente selecionar e copiar manualmente."));
+      }
+      
+      // Ação de Deletar Usuário
+      else if (acao === 'deletar') {
+          if (confirm(`Tem certeza que deseja apagar a licença de '${idCliente}'? O aplicativo dele travará imediatamente.`)) {
+              remove(ref(database, 'usuarios/' + idCliente)).then(() => {
+                  alert("Licença removida!");
+              });
+          }
+      }
+  };
+</script>
+
+
+</body>
+</html>
