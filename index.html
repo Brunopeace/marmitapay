@@ -7,8 +7,12 @@
     <meta name="mobile-web-app-capable" content="yes">
     <title>Marmita Pay - Gerenciador</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="css/estilo.css">
-<link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Link para o Manifest -->
+<link rel="manifest" href="./manifest.json">
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
 </head>
 <body>
@@ -173,15 +177,128 @@
             </select>
         </div>
 
+        <!-- NOVO: Resumo Mensal -->
         <div id="resumoMensal" style="background: #f1f5f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 0.9rem;">
-    
+            <!-- Conteúdo injetado pelo JS -->
         </div>
 
         <div id="historyContent" style="max-height: 300px; overflow-y: auto;"></div>
     </div>
 </div>
 
+<!-- Modal de Período de Teste Totalmente Blindado -->
+<div id="modalTeste" class="modal-trava" style="display: none; position: fixed; z-index: 99999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.95); align-items: center; justify-content: center;">
+    <div class="modal-content" style="max-width: 360px; text-align: center; font-family: sans-serif; border-radius: 12px; padding: 24px; background: white; margin: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <h3 style="margin-top: 0; color: #0f172a; font-size: 1.3rem;">Bem-vindo ao Marmita Pay! 🚀</h3>
+        <p id="msgTeste" style="margin: 20px 0; font-size: 1.05rem; color: #475569; line-height: 1.5;"></p>
+        <button id="btnAcaoTeste" class="btn-submit" style="width: 100%; padding: 12px; font-weight: bold; font-size: 1rem; border-radius: 8px; border: none; cursor: pointer;">Entendi</button>
+    </div>
+</div>
 
-    <script src="javascript/script.js"></script>
+<!-- Mantenha o seu modal como está e substitua o script por este aqui -->
+<script type="module">
+  // Importa as funções necessárias do SDK moderno do Firebase
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+  import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
+
+  // Suas credenciais oficiais do Marmita Pay
+  const firebaseConfig = {
+    apiKey: "AIzaSyCl9ESVdH3nj8pkCaCcQzbmV5yKrJAoRsw",
+    authDomain: "marmita-pay.firebaseapp.com",
+    databaseURL: "https://marmita-pay-default-rtdb.firebaseio.com",
+    projectId: "marmita-pay",
+    storageBucket: "marmita-pay.firebasestorage.app",
+    messagingSenderId: "326376221568",
+    appId: "1:326376221568:web:cd436a0b2429ebdc4faf65"
+  };
+
+  // Inicializa o Firebase e o Banco de Dados
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+
+  // Captura os elementos do Modal no HTML
+  const elementoTexto = document.getElementById('msgTeste');
+  const elementoBotao = document.getElementById('btnAcaoTeste');
+  const containerTrava = document.getElementById('modalTeste');
+
+  // Identifica se existe um ID de cliente na URL (Ex: ?id=joaomarmitas)
+  const urlParams = new URLSearchParams(window.location.search);
+  const idClienteFirebase = urlParams.get('id');
+
+  // SE EXISTIR ID NA URL -> O Controle é feito pelo PAINEL ONLINE (Firebase)
+  if (idClienteFirebase) {
+    const usuarioRef = ref(database, 'usuarios/' + idClienteFirebase);
+    
+    // Escuta as alterações do banco de dados em tempo real
+    onValue(usuarioRef, (snapshot) => {
+      const dados = snapshot.val();
+      
+      if (!dados) {
+        exibirBloqueioTotal("Licença não encontrada ou inválida.<br><br>Por favor, entre em contato com o administrador.");
+        return;
+      }
+
+      // Compara a data atual com o vencimento gravado no Firebase
+      const dataVencimento = new Date(dados.vencimento + "T23:59:59");
+      const hoje = new Date();
+
+      if (hoje > dataVencimento) {
+        exibirBloqueioTotal("Sua assinatura mensal <span style='color: #ef4444; font-weight: bold;'>expirou</span>.<br><br>Para renovar sua licença e liberar o acesso aos seus dados, entre em contato.");
+      } else {
+        // Se estiver tudo pago, oculta a trava da tela
+        containerTrava.style.display = 'none';
+      }
+    });
+  } 
+  // SE NÃO EXISTIR ID NA URL -> Continua o fluxo normal dos 15 dias gratuitos (LocalStorage)
+  else {
+    const prazoDias = 15;
+    const chaveArmazenamento = 'marmitapay_inicio_teste';
+    let dataCriacao = localStorage.getItem(chaveArmazenamento);
+
+    if (!dataCriacao) {
+      dataCriacao = Date.now();
+      localStorage.setItem(chaveArmazenamento, dataCriacao);
+    }
+
+    const milissegundosPorDia = 24 * 60 * 60 * 1000;
+    const diasDecorridos = Math.floor((Date.now() - parseInt(dataCriacao)) / milissegundosPorDia);
+    const diasRestantes = prazoDias - diasDecorridos;
+
+    if (diasRestantes > 0) {
+      elementoTexto.innerHTML = `Você está utilizando a nossa versão de demonstração.<br><br><span style="color: #10b981; font-weight: 800; font-size: 1.2rem;">Restam ${diasRestantes} dias</span> de teste gratuito!`;
+      elementoBotao.style.backgroundColor = "#10b981";
+      elementoBotao.style.color = "white";
+      elementoBotao.onclick = function() {
+        containerTrava.style.display = 'none';
+      };
+      containerTrava.style.display = 'flex';
+    } else {
+      exibirBloqueioTotal("Seu período de teste de 15 dias <span style='color: #ef4444; font-weight: bold;'>expirou</span>.<br><br>Para continuar gerenciando suas penduras, entre em contato para ativar sua licença completa!");
+    }
+  }
+
+  // Função interna para aplicar a blindagem e o bloqueio na tela
+  function exibirBloqueioTotal(mensagemHtml) {
+    elementoTexto.innerHTML = mensagemHtml;
+    
+    elementoBotao.innerText = "Chamar no WhatsApp";
+    elementoBotao.style.backgroundColor = "#25d366";
+    elementoBotao.style.color = "white";
+    elementoBotao.onclick = function() {
+      window.open('https://wa.me/5581999999999?text=Olá!%20Meu%20acesso%20no%20Marmita%20Pay%20está%20bloqueado%20e%20gostaria%20de%20verificar%20minha%20licença.', '_blank');
+    };
+
+    containerTrava.style.display = 'flex';
+    
+    // Trava de clique para impedir que fechem clicando fora do modal
+    containerTrava.onclick = function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+    };
+  }
+</script>
+
+    <script src="js/script.js"></script>
 </body>
 </html>
