@@ -212,7 +212,7 @@
     appId: "1:326376221568:web:cd436a0b2429ebdc4faf65"
   };
 
-  // Inicializa o Firebase e o Banco de Dados
+  // Initialize Firebase
   const app = initializeApp(firebaseConfig);
   const database = getDatabase(app);
 
@@ -221,11 +221,23 @@
   const elementoBotao = document.getElementById('btnAcaoTeste');
   const containerTrava = document.getElementById('modalTeste');
 
-  // Identifica se existe um ID de cliente na URL (Ex: ?id=joaomarmitas)
-  const urlParams = new URLSearchParams(window.location.search);
-  const idClienteFirebase = urlParams.get('id');
+  // Chave interna para fixar a licença no aparelho do cliente para o PWA
+  const chaveLicencaFixa = 'marmitapay_id_licenca';
 
-  // SE EXISTIR ID NA URL -> O Controle é feito pelo PAINEL ONLINE (Firebase)
+  // Tenta capturar o ID da URL (?id=bruno)
+  const urlParams = new URLSearchParams(window.location.search);
+  let idClienteFirebase = urlParams.get('id');
+
+  // LÓGICA DE BLINDAGEM DO PWA:
+  if (idClienteFirebase) {
+    // Se o cliente acessou com ?id na URL, grava ou atualiza no aparelho dele
+    localStorage.setItem(chaveLicencaFixa, idClienteFirebase);
+  } else {
+    // Se a URL estiver limpa (PWA aberto pela tela inicial), puxa o ID que ficou guardado
+    idClienteFirebase = localStorage.getItem(chaveLicencaFixa);
+  }
+
+  // SE EXISTIR ID (Na URL ou salvo na memória) -> O Controle é feito pelo Firebase
   if (idClienteFirebase) {
     const usuarioRef = ref(database, 'usuarios/' + idClienteFirebase);
     
@@ -250,7 +262,7 @@
       }
     });
   } 
-  // SE NÃO EXISTIR ID NA URL -> Continua o fluxo normal dos 15 dias gratuitos (LocalStorage)
+  // SE NÃO EXISTIR ID EM LUGAR NENHUM -> Segue o fluxo normal de demonstração (15 dias locais)
   else {
     const prazoDias = 15;
     const chaveArmazenamento = 'marmitapay_inicio_teste';
@@ -278,7 +290,7 @@
     }
   }
 
-  // Função interna para aplicar a blindagem e o bloqueio na tela
+  // Função interna para aplicar a blindagem e o bloqueio na tela (Corrigida)
   function exibirBloqueioTotal(mensagemHtml) {
     elementoTexto.innerHTML = mensagemHtml;
     
@@ -298,6 +310,7 @@
     };
   }
 </script>
+
 
     <script src="javascript/script.js"></script>
 </body>
