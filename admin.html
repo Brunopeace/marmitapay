@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel Admin - Controle de Licenças</title>
-<link rel="icon" href="img/icon-512.png">
+    <link rel="icon" href="img/icon-512.png">
+    <link rel="manifest" href="./manifest.json">
 
     <style>
     /* ==========================================================================
@@ -277,11 +278,12 @@
     }
 </style>
 
+
 </head>
 <body>
 
 <div class="container">
-    <h1>Painel de Controle Comercial 🛡️</h1>
+    <h1>Painel de Controle 🛡️</h1>
     
     <!-- Formulário para Cadastrar Novo Cliente/Usuário -->
     <div class="card-admin">
@@ -346,7 +348,7 @@
       
       const dadosGerais = snapshot.val();
       if (!dadosGerais) {
-          tabela.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b;">Nenhuma licença cadastrada.</td></tr>`;
+          tabela.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b;">Nenhuma licença.</td></tr>`;
           return;
       }
 
@@ -446,7 +448,6 @@
       }
   };
 </script>
-
 
 </body>
 </html>
