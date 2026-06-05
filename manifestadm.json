@@ -1,7 +1,7 @@
 {
   "name": "Painel Marmita",
   "short_name": "painel adm",
-  "start_url": "./manifestadm.json",
+  "start_url": "./admin.html",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
