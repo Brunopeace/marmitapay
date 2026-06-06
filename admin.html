@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Admin - Controle de Licenças</title>
+    <title>Painel Admin</title>
     <link rel="icon" href="img/icon-512.png">
     <link rel="manifest" href="manifestadm.json">
 
@@ -145,6 +145,25 @@
         font-size: 0.85rem;
     }
     
+    /* Indicadores de Status Online / Offline */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 6px;
+        background: #0f172a;
+    }
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+    .online { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+    .offline { background-color: #64748b; }
+
     /* ==========================================================================
        SISTEMA DE BOTÕES TRABALHADOS
        ========================================================================== */
@@ -278,7 +297,6 @@
     }
 </style>
 
-
 </head>
 <body>
 
@@ -320,7 +338,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-  import { getDatabase, ref, set, update, onValue, remove } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
+  import { getDatabase, ref, set, update, onValue, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
 
   // Suas credenciais oficiais do Marmita Pay
   const firebaseConfig = {
@@ -352,14 +370,27 @@
           return;
       }
 
+      const agora = Date.now();
+
       // Passa por cada usuário cadastrado no Firebase
       Object.keys(dadosGerais).forEach((idCliente) => {
           const dados = dadosGerais[idCliente];
           
+          // Lógica de monitoramento de Status Online (Atividade nos últimos 3 minutos = 180000ms)
+          let statusHtml = `<span class="status-badge"><span class="status-dot offline"></span>Offline</span>`;
+          if (dados.ultimaAtividade && (agora - dados.ultimaAtividade) < 180000) {
+              statusHtml = `<span class="status-badge" style="color: #10b981;"><span class="status-dot online"></span>Online</span>`;
+          }
+
           const tr = document.createElement('tr');
           tr.innerHTML = `
               <td><strong>${idCliente}</strong></td>
-              <td>${dados.nome}</td>
+              <td>
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                      <span>${dados.nome}</span>
+                      <div>${statusHtml}</div>
+                  </div>
+              </td>
               <td><input type="date" id="data_${idCliente}" value="${dados.vencimento}"></td>
               <td>
                   <button class="btn btn-salvar" data-id="${idCliente}" data-acao="salvar">Atualizar</button>
@@ -385,7 +416,8 @@
       // Grava os dados na coleção 'usuarios/id_do_cliente'  
       set(ref(database, 'usuarios/' + id), {  
           nome: nome,  
-          vencimento: vencimento  
+          vencimento: vencimento,
+          ultimaAtividade: serverTimestamp() // Inicia com o tempo do servidor
       }).then(() => {  
           const linkGerado = `${urlBaseApp}?id=${id}`;
           
@@ -418,15 +450,14 @@
           update(ref(database, 'usuarios/' + idCliente), {
               vencimento: novaData
           }).then(() => {
-              alert(`Vencimento do ID '${idCliente}' atualizado com sucesso!`);
+              alert(`Vencimento do ID '${idCliente}' updated com sucesso!`);
           });
       } 
       
-      // NOVA AÇÃO: Copiar link individual da tabela
+      // Ação: Copiar link individual da tabela
       else if (acao === 'copiar') {
           const linkCliente = `${urlBaseApp}?id=${idCliente}`;
           navigator.clipboard.writeText(linkCliente).then(() => {
-              // Feedback visual rápido mudando o texto do botão temporariamente
               const textoOriginal = botao.innerText;
               botao.innerText = "✅ Copiado!";
               botao.style.backgroundColor = "#10b981";
