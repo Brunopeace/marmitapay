@@ -197,9 +197,9 @@
 
 <!-- Mantenha o seu modal como está e substitua o script por este aqui -->
 <script type="module">
-  // Importa as funções necessárias do SDK moderno do Firebase
+  // 1. IMPORTAÇÃO CORRIGIDA: Adicionado o "update" que estava faltando
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-  import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
+  import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-database.js";
 
   // Suas credenciais oficiais do Marmita Pay
   const firebaseConfig = {
@@ -235,6 +235,17 @@
   } else {
     // Se a URL estiver limpa (PWA aberto pela tela inicial), puxa o ID que ficou guardado
     idClienteFirebase = localStorage.getItem(chaveLicencaFixa);
+  }
+
+  // 🛠️ LÓGICA DE ONLINE/OFFLINE NO LUGAR CORRETO (Agora a variável "idClienteFirebase" já existe!)
+  if (idClienteFirebase) {
+    // Atualiza o status assim que entra no app
+    update(ref(database, 'usuarios/' + idClienteFirebase), { ultimaAtividade: Date.now() });
+    
+    // Atualiza a cada 2 minutos enquanto ele continuar com a página aberta
+    setInterval(() => {
+      update(ref(database, 'usuarios/' + idClienteFirebase), { ultimaAtividade: Date.now() });
+    }, 120000); 
   }
 
   // SE EXISTIR ID (Na URL ou salvo na memória) -> O Controle é feito pelo Firebase
@@ -290,7 +301,7 @@
     }
   }
 
-  // Função interna para aplicar a blindagem e o bloqueio na tela (Corrigida)
+  // Função interna para aplicar a blindagem e o bloqueio na tela
   function exibirBloqueioTotal(mensagemHtml) {
     elementoTexto.innerHTML = mensagemHtml;
     
@@ -298,7 +309,7 @@
     elementoBotao.style.backgroundColor = "#25d366";
     elementoBotao.style.color = "white";
     elementoBotao.onclick = function() {
-      window.open('https://wa.me/5581999999999?text=Olá!%20Meu%20acesso%20no%20Marmita%20Pay%20está%20bloqueado%20e%20gostaria%20de%20verificar%20minha%20licença.', '_blank');
+      window.open('https://wa.me/5581982258462?text=Olá!%20Meu%20acesso%20no%20Marmita%20Pay%20está%20bloqueado%20e%20gostaria%20de%20renovar%20minha%20licença.', '_blank');
     };
 
     containerTrava.style.display = 'flex';
@@ -310,7 +321,6 @@
     };
   }
 </script>
-
 
     <script src="javascript/script.js"></script>
 </body>
